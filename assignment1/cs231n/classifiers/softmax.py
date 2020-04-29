@@ -25,18 +25,31 @@ def softmax_loss_naive(W, X, y, reg):
     loss = 0.0
     dW = np.zeros_like(W)
 
-    #############################################################################
-    # TODO: Compute the softmax loss and its gradient using explicit loops.     #
-    # Store the loss in loss and the gradient in dW. If you are not careful     #
-    # here, it is easy to run into numeric instability. Don't forget the        #
-    # regularization!                                                           #
-    #############################################################################
-    # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    N = X.shape[0]
+    C = W.shape[1]
+    for i in range(N):
+      scores = (W.T).dot(X[i].T) #W*X
+      scores -= np.max(scores)
+      y_true_score = scores[y[i]] #get score for the true class
+      loss += -y_true_score  #score for the correct class
+      class_score = 0 
+      dWl = np.zeros_like(W)
 
-    pass
+      for j in range(C):
+        class_score += np.exp(scores[j])
+        if y[i] == j : #if current class is equal to label 
+          dWl[:,j] +=  X[i] * (np.exp(scores[j])/np.sum(np.exp(scores))-1)
+          
+        else : 
+          dWl[:,j] +=  X[i] * np.exp(scores[j])/np.sum(np.exp(scores))
 
-    # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+      dW += dWl
+      loss += np.log(class_score)
 
+    loss += reg * np.sum(W*W)
+    loss /= N
+    dW += reg *W
+    dW /= N
     return loss, dW
 
 
@@ -49,17 +62,28 @@ def softmax_loss_vectorized(W, X, y, reg):
     # Initialize the loss and gradient to zero.
     loss = 0.0
     dW = np.zeros_like(W)
+    N = X.shape[0]
+    C = W.shape[1]
 
-    #############################################################################
-    # TODO: Compute the softmax loss and its gradient using no explicit loops.  #
-    # Store the loss in loss and the gradient in dW. If you are not careful     #
-    # here, it is easy to run into numeric instability. Don't forget the        #
-    # regularization!                                                           #
-    #############################################################################
-    # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    scores = np.dot(X,W)
+    
+    scores -= np.max(scores)
+    y_true_score = np.choose(y,scores.T)
+    softmax = np.exp(scores)/(np.sum(np.exp(scores),axis=1)).reshape(N,1)
 
-    pass
+    #gradient wrt to softmax 
+    grad = softmax
+    grad[range(N),y] -= 1
 
-    # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+
+    #Backprop 
+    dW += np.dot(X.T,grad) #backprop
+    dW /= N
+    dW += reg*W #regularize
+
+    #Cross Enropy Loss
+    loss = np.sum(- y_true_score + np.log(np.sum(np.exp(scores),axis=1)))
+    loss /= N 
+    loss += reg * np.sum(W*W)
 
     return loss, dW
