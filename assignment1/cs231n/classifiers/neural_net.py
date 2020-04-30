@@ -37,11 +37,16 @@ class TwoLayerNet(object):
         - hidden_size: The number of neurons H in the hidden layer.
         - output_size: The number of classes C.
         """
+     
         self.params = {}
         self.params['W1'] = std * np.random.randn(input_size, hidden_size)
         self.params['b1'] = np.zeros(hidden_size)
         self.params['W2'] = std * np.random.randn(hidden_size, output_size)
         self.params['b2'] = np.zeros(output_size)
+    
+
+    def reLU(self,x):
+      return np.maximum(0,x)
 
     def loss(self, X, y=None, reg=0.0):
         """
@@ -70,40 +75,37 @@ class TwoLayerNet(object):
         W1, b1 = self.params['W1'], self.params['b1']
         W2, b2 = self.params['W2'], self.params['b2']
         N, D = X.shape
-
         # Compute the forward pass
-        scores = None
-        #############################################################################
-        # TODO: Perform the forward pass, computing the class scores for the input. #
-        # Store the result in the scores variable, which should be an array of      #
-        # shape (N, C).                                                             #
-        #############################################################################
-        # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+         
+        hidden_layer = self.reLU(np.dot(X,W1)+b1)
+        scores = np.dot(hidden_layer,W2)+b2
+        #loss
+        loss = None
 
-        pass
+        scores -= np.max(scores)
+        softmax = np.exp(scores)/np.sum(np.exp(scores),axis=1,keepdims=True)
+        loss = np.mean(-np.log(softmax[range(N),y]))  #extract real label for each row (example)
+        loss += 0.5 * reg * (np.sum(W1**2) + np.sum(W2**2)) #L2 regularization 
 
-        # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-        # If the targets are not given then jump out, we're done
         if y is None:
             return scores
 
-        # Compute the loss
-        loss = None
-        #############################################################################
-        # TODO: Finish the forward pass, and compute the loss. This should include  #
-        # both the data loss and L2 regularization for W1 and W2. Store the result  #
-        # in the variable loss, which should be a scalar. Use the Softmax           #
-        # classifier loss.                                                          #
-        #############################################################################
-        # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-        pass
-
-        # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-        # Backward pass: compute gradients
+        # Compute the loss        
+        grad = softmax
+        grad[np.arange(N),y] -= 1
+        grad/=N 
+        
+        
         grads = {}
+        grads['W2'] = np.dot(hidden_layer.T,grad)
+        dhidden = np.dot(grad,W2.T)
+        dhidden[dhidden<=0] = 0
+        grads['W1'] = np.dot(X.T,dhidden)
+        grads['b2'] = np.sum(grad,axis=0)
+        grads['b1'] = np.sum(dhidden,axis=0)
+        grads['W1'] += reg * W1
+        grads['W2'] += reg * W2
+
         #############################################################################
         # TODO: Compute the backward pass, computing the derivatives of the weights #
         # and biases. Store the results in the grads dictionary. For example,       #
@@ -111,7 +113,6 @@ class TwoLayerNet(object):
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -149,6 +150,10 @@ class TwoLayerNet(object):
         for it in range(num_iters):
             X_batch = None
             y_batch = None
+            idx = np.random.choice(num_train,batch_size)
+
+            X_batch = X[idx]
+            y_batch = y[idx]
 
             #########################################################################
             # TODO: Create a random minibatch of training data and labels, storing  #
@@ -156,13 +161,19 @@ class TwoLayerNet(object):
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-            pass
-
+            
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
             # Compute loss and gradients using the current minibatch
             loss, grads = self.loss(X_batch, y=y_batch, reg=reg)
             loss_history.append(loss)
+
+            #update 
+            self.params['W2'] -= learning_rate * grads['W2']
+            self.params['W1'] -= learning_rate * grads['W1']
+            self.params['b2'] -= learning_rate * grads['b2']
+            self.params['b1'] -= learning_rate * grads['b1']
+
 
             #########################################################################
             # TODO: Use the gradients in the grads dictionary to update the         #
@@ -212,14 +223,12 @@ class TwoLayerNet(object):
           to have class c, where 0 <= c < C.
         """
         y_pred = None
-
-        ###########################################################################
-        # TODO: Implement this function; it should be VERY simple!                #
-        ###########################################################################
-        # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-        pass
-
-        # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
+        W1, b1 = self.params['W1'], self.params['b1']
+        W2, b2 = self.params['W2'], self.params['b2']
+        N, D = X.shape
+        # Compute the forward pass
+         
+        hidden_layer = self.reLU(np.dot(X,W1)+b1)
+        scores = np.dot(hidden_layer,W2)+b2
+        y_pred = np.argmax(scores,axis=1)
         return y_pred
