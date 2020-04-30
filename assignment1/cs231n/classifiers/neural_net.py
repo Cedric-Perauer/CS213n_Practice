@@ -80,15 +80,18 @@ class TwoLayerNet(object):
         hidden_layer = self.reLU(np.dot(X,W1)+b1)
         scores = np.dot(hidden_layer,W2)+b2
         #loss
-        loss = None
-
-        scores -= np.max(scores)
-        softmax = np.exp(scores)/np.sum(np.exp(scores),axis=1,keepdims=True)
-        loss = np.mean(-np.log(softmax[range(N),y]))  #extract real label for each row (example)
-        loss += 0.5 * reg * (np.sum(W1**2) + np.sum(W2**2)) #L2 regularization 
 
         if y is None:
             return scores
+
+        loss = None
+
+        scores -= np.max(scores,axis=1,keepdims=True)
+        softmax = np.exp(scores)/np.sum(np.exp(scores),axis=1,keepdims=True)
+        loss = np.mean(-np.log(softmax[np.arange(N),y]))  #extract real label for each row (example)
+        loss += 0.5 * reg * (np.sum(W1**2) + np.sum(W2**2)) #L2 regularization 
+
+    
 
         # Compute the loss        
         grad = softmax
@@ -97,14 +100,20 @@ class TwoLayerNet(object):
         
         
         grads = {}
-        grads['W2'] = np.dot(hidden_layer.T,grad)
-        dhidden = np.dot(grad,W2.T)
-        dhidden[dhidden<=0] = 0
-        grads['W1'] = np.dot(X.T,dhidden)
+
+        dW2 = np.dot(hidden_layer.T,grad) #dL/dw2 
+        dW1 = np.dot(grad,W2.T)
+        dfc1 = dW1 * (hidden_layer>0)
+        dW1 = np.dot(X.T,dfc1)
+
+
+        grads['W2'] = dW2
+        grads['W1'] = dW1
         grads['b2'] = np.sum(grad,axis=0)
-        grads['b1'] = np.sum(dhidden,axis=0)
-        grads['W1'] += reg * W1
-        grads['W2'] += reg * W2
+        grads['b1'] = np.sum(dfc1,axis=0)
+
+        grads['W1'] += reg *2* W1
+        grads['W2'] += reg *2* W2
 
         #############################################################################
         # TODO: Compute the backward pass, computing the derivatives of the weights #
@@ -187,7 +196,7 @@ class TwoLayerNet(object):
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-            if verbose and it % 100 == 0:
+            if verbose and it % 2000 == 0:
                 print('iteration %d / %d: loss %f' % (it, num_iters, loss))
 
             # Every epoch, check train and val accuracy and decay learning rate.
