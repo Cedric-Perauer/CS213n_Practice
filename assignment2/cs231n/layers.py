@@ -162,6 +162,7 @@ def batchnorm_forward(x, gamma, beta, bn_param):
     mode = bn_param["mode"]
     eps = bn_param.get("eps", 1e-5)
     momentum = bn_param.get("momentum", 0.9)
+    layernorm = bn_param.get('layernorm', 0)
 
     N, D = x.shape
     running_mean = bn_param.get("running_mean", np.zeros(D, dtype=x.dtype))
@@ -192,13 +193,24 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        mu = x.mean(axis=0)
+        var = x.var(axis=0) 
+        std = np.sqrt(var+eps)
+        x_hat = (x-mu)/std
+        out = gamma * x_hat + beta
+        if layernorm==0: 
+          #weighted averages of mean and variance that are weighted
+          running_mean = momentum * running_mean + (1 - momentum) * mu
+          running_var = momentum * running_var + (1 - momentum) * (std**2)
 
+        cache={'x':x,'mean':mu,'std':std,'gamma':gamma,'x_hat':x_hat,'var':var,'axis':layernorm,'eps':eps}
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
         #                           END OF YOUR CODE                          #
         #######################################################################
     elif mode == "test":
+        #just use weighted cases here
+        out = gamma * (x-running_mean)/np.sqrt(running_var+eps)
         #######################################################################
         # TODO: Implement the test-time forward pass for batch normalization. #
         # Use the running mean and variance to normalize the incoming data,   #
@@ -207,7 +219,6 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
@@ -241,6 +252,7 @@ def batchnorm_backward(dout, cache):
     - dbeta: Gradient with respect to shift parameter beta, of shape (D,)
     """
     dx, dgamma, dbeta = None, None, None
+
     ###########################################################################
     # TODO: Implement the backward pass for batch normalization. Store the    #
     # results in the dx, dgamma, and dbeta variables.                         #
@@ -249,7 +261,19 @@ def batchnorm_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+        # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    dgamma =  np.sum(dout * cache['x_hat'],axis=cache['axis'])
+    dbeta = np.sum(dout,axis=cache['axis'])
+    N,D =  dout.shape
+    dx_hat = dout * cache['gamma']
+    dvar_sum = np.sum(dx_hat*(cache['x']-cache['mean']),axis=0)
+    dvar = dvar_sum *-0.5*(cache['var']+cache['eps'])**(-1.5)
+
+    dxmu_1 = 1*dx_hat/np.sqrt(cache['var']+cache['eps']) #same as in x term removing minus
+    dxmu_2 = 2*(cache['x']-cache['mean']) * (1/N) * np.ones((N,D)) * dvar #same as in x term removing minus
+    dmu = -1 * np.sum(dxmu_1 + dxmu_2,axis=0) 
+    dx_1 = dxmu_1 + dxmu_2
+    dx = dx_1 + 1/N * np.ones((N,D)) * dmu
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -274,6 +298,8 @@ def batchnorm_backward_alt(dout, cache):
     Inputs / outputs: Same as batchnorm_backward
     """
     dx, dgamma, dbeta = None, None, None
+    dgamma =  np.sum(dout * cache['x_hat'],axis=cache['axis'])
+    dbeta = np.sum(dout,axis=cache['axis'])
     ###########################################################################
     # TODO: Implement the backward pass for batch normalization. Store the    #
     # results in the dx, dgamma, and dbeta variables.                         #
@@ -282,9 +308,12 @@ def batchnorm_backward_alt(dout, cache):
     # should be able to compute gradients with respect to the inputs in a     #
     # single statement; our implementation fits on a single 80-character line.#
     ###########################################################################
-    # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    N = dout.shape[0]
+    dldx_hat = dout * cache['gamma']
+    dldx_hat_sum = np.sum(dldx_hat,axis=0)
+    dx = dldx_hat - dldx_hat_sum/N - np.sum(dldx_hat*cache['x_hat'],axis=0) * cache['x_hat']/N
+    dx /= cache['std']
 
-    pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -329,14 +358,17 @@ def layernorm_forward(x, gamma, beta, ln_param):
     # the batch norm code and leave it almost unchanged?                      #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-    pass
+    ln_param['mode'] = 'train' # same as batch norm in train mode
+    ln_param['layernorm'] = 1
+    out, cache = batchnorm_forward(x.T, gamma.reshape(-1,1),
+                                   beta.reshape(-1,1), ln_param)
+    
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
-    return out, cache
+    return out.T, cache
 
 
 def layernorm_backward(dout, cache):
@@ -364,8 +396,9 @@ def layernorm_backward(dout, cache):
     # still apply!                                                            #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    dx, dgamma, dbeta = batchnorm_backward_alt(dout.T, cache)
+    dx = dx.T
 
-    pass
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
