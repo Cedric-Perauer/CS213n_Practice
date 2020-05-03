@@ -62,14 +62,15 @@ def sgd_momentum(w, dw, config=None):
     config.setdefault("momentum", 0.9)
     v = config.get("velocity", np.zeros_like(w))
 
-    next_w = None
+   
     ###########################################################################
     # TODO: Implement the momentum update formula. Store the updated value in #
     # the next_w variable. You should also use and update the velocity v.     #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-    pass
+    v = config['momentum'] * v - config['learning_rate'] * dw
+    next_w = w + v
+    
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -99,7 +100,6 @@ def rmsprop(w, dw, config=None):
     config.setdefault("epsilon", 1e-8)
     config.setdefault("cache", np.zeros_like(w))
 
-    next_w = None
     ###########################################################################
     # TODO: Implement the RMSprop update formula, storing the next value of w #
     # in the next_w variable. Don't forget to update cache value stored in    #
@@ -107,7 +107,18 @@ def rmsprop(w, dw, config=None):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    eps = config['epsilon']
+    cache = config['cache']
+    lr = config['learning_rate']
+    decay_rate = config['decay_rate']
+    cache = decay_rate * cache + (1 - decay_rate) * dw**2 #exponential weighted average to be less aggressive than Adagrad
+    config['cache'] = cache
+
+
+    next_w = None
+    
+
+    next_w = w - lr * dw/(np.sqrt(cache))
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -140,6 +151,13 @@ def adam(w, dw, config=None):
     config.setdefault("m", np.zeros_like(w))
     config.setdefault("v", np.zeros_like(w))
     config.setdefault("t", 0)
+    beta1, beta2 = config['beta1'], config['beta2'] 
+    eps = config['epsilon'] 
+    m = config['m']
+    v = config['v'] 
+    learning_rate = config['learning_rate'] 
+    t = config['t'] 
+
 
     next_w = None
     ###########################################################################
@@ -151,9 +169,15 @@ def adam(w, dw, config=None):
     # using it in any calculations.                                           #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-    pass
-
+    t += 1
+    m = beta1*m + (1-beta1)*dw #momentum 
+    mt = m / (1-beta1**t) #bias correction  
+    v = beta2*v + (1-beta2)*(dw**2) #RMSprop 
+    vt = v / (1-beta2**t) #bias correction 
+    next_w = w - learning_rate * mt / (np.sqrt(vt) + eps) #weight update
+    config['t'] = t
+    config['m'] = m
+    config['v'] = v 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
     #                             END OF YOUR CODE                            #
