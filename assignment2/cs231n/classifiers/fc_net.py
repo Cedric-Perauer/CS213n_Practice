@@ -377,11 +377,12 @@ def affine_relu_forward_everything(x, w, b, gamma, beta, bn_param, norm, drop, d
         out,bn = batchnorm_forward(out, gamma, beta, bn_param)
       elif norm=='layernorm': 
         out,bn = layernorm_forward(out, gamma, beta, bn_param)
+      #relu 
       out, relu = relu_forward(out) 
       if drop : 
-        out,do = dropout_backward(out,drop_param)
-
+          out,do = dropout_forward(out,drop_param)
       return out, (fc,bn,relu,do)
+
 
 def affine_relu_backward_everything(dout,cache,norm,drop): 
       #caches
