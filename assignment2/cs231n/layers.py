@@ -1,7 +1,7 @@
 from builtins import range
 import numpy as np
 
-
+## S/O to jariasf whose code I could compare to when I got stuck with the spatial group norm  
 
 def affine_forward(x, w, b):
     """
